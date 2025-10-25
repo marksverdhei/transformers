@@ -68,7 +68,7 @@ class GptOssDenseMLP(nn.Module):
         self.gate_up_proj = nn.Linear(self.hidden_size, 2 * self.intermediate_size, bias=True)
         self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=True)
         self.alpha = 1.702
-        self.limit = 7.0
+        self.limit = config.swiglu_limit
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         """
