@@ -16,7 +16,7 @@ Equivalence investigation between GLM4 (dense) and GLM4-MoE.
 
 NOTE: GLM4 and GLM4-MoE have fundamentally different architectures:
 - GLM4 uses Phi3MLP (fused gate_up_proj) with 4 layer norms per layer
-- GLM4-MoE uses GemmaMLP (separate gate_proj/up_proj) with 2 layer norms per layer
+- GLM4-MoE uses DeepseekV3MLP (separate gate_proj/up_proj) with 2 layer norms per layer
 - Different attention implementations (GlmAttention vs Glm4MoeAttention/CohereAttention)
 
 These tests investigate whether GLM4-MoE configured with minimal MoE (1 expert, 1 shared expert)
@@ -106,7 +106,7 @@ class Glm4MoeMinimalExpertTest(unittest.TestCase):
         # Verify layers are dense
         for i, layer in enumerate(model.model.layers):
             mlp_class_name = layer.mlp.__class__.__name__
-            # Should be GemmaMLP when dense (via Qwen2MoeMLP -> GemmaMLP)
+            # Should be Glm4MoeMLP when dense (inherits from DeepseekV3MLP -> Qwen2MoeMLP -> GemmaMLP)
             self.assertIn("MLP", mlp_class_name)
             # Should NOT have MoE components
             self.assertFalse(hasattr(layer.mlp, 'gate'), f"Layer {i} should not have MoE gate")
@@ -159,7 +159,7 @@ class Glm4MoeMinimalExpertTest(unittest.TestCase):
         self.assertTrue(hasattr(glm4_mlp, 'gate_up_proj'))
         self.assertFalse(hasattr(glm4_mlp, 'gate_proj'))
 
-        # GLM4-MoE uses GemmaMLP (separate)
+        # GLM4-MoE uses Glm4MoeMLP (inherits from DeepseekV3MLP, separate projections)
         self.assertTrue(hasattr(glm4_moe_mlp, 'gate_proj'))
         self.assertTrue(hasattr(glm4_moe_mlp, 'up_proj'))
         self.assertFalse(hasattr(glm4_moe_mlp, 'gate_up_proj'))
