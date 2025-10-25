@@ -15,12 +15,19 @@
 Equivalence investigation between GLM4 (dense) and GLM4-MoE.
 
 NOTE: GLM4 and GLM4-MoE have fundamentally different architectures:
-- GLM4 uses Phi3MLP (fused gate_up_proj) with 4 layer norms per layer
-- GLM4-MoE uses DeepseekV3MLP (separate gate_proj/up_proj) with 2 layer norms per layer
-- Different attention implementations (GlmAttention vs Glm4MoeAttention/CohereAttention)
 
-These tests investigate whether GLM4-MoE configured with minimal MoE (1 expert, 1 shared expert)
-can approximate GLM4 behavior when weights are properly converted.
+MLP (Mathematically Equivalent):
+- GLM4 uses Phi3MLP (fused gate_up_proj)
+- GLM4-MoE uses DeepseekV3MLP (separate gate_proj/up_proj)
+- These are mathematically equivalent - weights can be converted between formats
+
+Layer Normalization (NOT Equivalent - PRIMARY BLOCKER):
+- GLM4: 4 layer norms per layer (pre+post norm architecture)
+- GLM4-MoE: 2 layer norms per layer (standard pre-norm architecture)
+- This is a fundamental computation graph difference
+
+These tests investigate whether GLM4-MoE configured with minimal MoE can approximate GLM4
+behavior when weights are properly converted, documenting the architectural barriers.
 """
 
 import unittest
@@ -191,16 +198,20 @@ class Glm4MoeMinimalExpertTest(unittest.TestCase):
         print("\n" + "="*70)
         print("GLM4 vs GLM4-MoE Architectural Differences:")
         print("="*70)
-        print(f"\nMLP:")
+        print(f"\nMLP (Mathematically Equivalent ✅):")
         print(f"  GLM4:     {glm4_mlp.__class__.__name__} (fused gate_up_proj)")
         print(f"  GLM4-MoE: {glm4_moe_mlp.__class__.__name__} (separate gate_proj/up_proj)")
-        print(f"\nLayer Norms:")
+        print(f"  → These compute the same function, just different weight layout")
+        print(f"  → Weights can be converted by splitting/concatenating")
+        print(f"\nLayer Norms (NOT Equivalent ❌ - PRIMARY BLOCKER):")
         print(f"  GLM4:     4 norms (input, post_attention, post_self_attn, post_mlp)")
         print(f"  GLM4-MoE: 2 norms (input, post_attention)")
+        print(f"  → GLM4 uses pre+post norm, GLM4-MoE uses standard pre-norm")
+        print(f"  → Different computation graph structure")
         print(f"\nAttention:")
         print(f"  GLM4:     {glm4_attn_class}")
         print(f"  GLM4-MoE: {glm4_moe_attn_class}")
-        print("\nConclusion: Models have different architectures and cannot be")
-        print("directly compared for exact equivalence, even when GLM4-MoE uses")
-        print("all-dense configuration.")
+        print("\nConclusion: Models CANNOT be equivalent due to layer norm differences.")
+        print("The MLP differences are superficial (weight layout only), but the")
+        print("layer normalization architecture is fundamentally different.")
         print("="*70 + "\n")
